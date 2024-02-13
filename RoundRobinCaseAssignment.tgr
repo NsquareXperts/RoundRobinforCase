@@ -1,0 +1,16 @@
+trigger RoundRobinCaseAssignment on Case (before insert) {
+    List<User> activeUsers = [SELECT Id FROM User WHERE IsActive = true];
+    
+    Integer lastAssignedIndex = 0;
+    
+    for (Case newCase : Trigger.new) {
+        // Assign the case to the next user 
+        User assignedUser = activeUsers[lastAssignedIndex];
+        newCase.OwnerId = assignedUser.Id;
+        
+        lastAssignedIndex++;
+        if (lastAssignedIndex >= activeUsers.size()) {
+            lastAssignedIndex = 0; // Loop back to the first user
+        }
+    }
+}
