@@ -1,0 +1,38 @@
+trigger CaseAssignmentTrigger on Case (before insert) {
+    Map<Id, List<User>> usersMap = new Map<Id, List<User>>();
+
+    // Collect unique ownerIds from the cases being inserted
+    Set<Id> ownerIds = new Set<Id>();
+    for (Case newCase : Trigger.new) {
+        if (newCase.OwnerId != null) {
+            ownerIds.add(newCase.OwnerId);
+        }
+    }
+
+    // Query users for the collected ownerIds
+    for (User user : [SELECT Id, Name FROM User WHERE Id IN :ownerIds]) {
+        if (!usersMap.containsKey(user.Id)) {
+            usersMap.put(user.Id, new List<User>());
+        }
+        usersMap.get(user.Id).add(user);
+    }
+    
+
+    // Now usersMap contains users grouped by ownerId
+    // Proceed with assigning cases to users
+    for (Case newCase : Trigger.new) {
+        if (newCase.OwnerId != null) {
+            // Check if the usersMap contains users for the ownerId
+            if (usersMap.containsKey(newCase.OwnerId)) {
+                List<User> users = usersMap.get(newCase.OwnerId);
+                // Get the next user to assign the case to using round-robin logic
+                Id nextUserId = CaseAssignment.getNextUser(users, newCase.OwnerId);
+
+                // Assign the case to the next user in the round-robin sequence
+                if (nextUserId != null) {
+                    newCase.OwnerId = nextUserId;
+                }
+            }
+        }
+    }
+}
